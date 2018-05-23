@@ -1,0 +1,21 @@
+who|what is|are|was|were (the|a)? (.*?) of|in (the|a)? (.*?)(?)?
+how many (.*?) is|are|was|were of|in|... (the|a)? (.*?)(?)?
+
+
+
+
+regex(question) 
+    correspondingFunction(question)
+regex(question) 
+    correspondingFunction(question)
+etc.
+
+else()
+    spacyAnalysis
+
+
+other functions:
+singularToPlural()
+substituteDeterminants()
+injectDeterminants()
+wordSubstitution() ##i.e. population/inhabitants
