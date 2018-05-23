@@ -17,6 +17,21 @@ def toSingular(noun):
     else:
         return noun
 
+##accepts list of nouns(probably made by spacy) and deletes question words
+def deleteQuestionWords(nouns):
+    length = len(nouns)
+    i = 0
+    while i < length: ##delete question words
+        if ((nouns[i].text == "what") or (nouns[i].text == "who") or 
+        (nouns[i].text == "when") or (nouns[i].text == "where") or 
+        (nouns[i].text == "What") or (nouns[i].text == "Who") or 
+        (nouns[i].text == "When") or (nouns[i].text == "Where"):
+            del(nouns[i])
+            length -= 1
+        else:
+            i += 1
+    return nouns
+
 ##here regex specific functions are going to be specified
 def whoWhat(question):
     pass
