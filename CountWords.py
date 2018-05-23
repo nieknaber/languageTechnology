@@ -7,6 +7,7 @@ def main():
 	wordCounts = {'initializeFFF': 0}
 
 	for word in data.split():
+		word = word.replace('?','')
 		x = re.search('(s\d{7})', word)
 		if (x == None):
 			wordCounts[word] = (wordCounts.get(word, 0) + 1)
