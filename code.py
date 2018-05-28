@@ -1,9 +1,5 @@
 import requests, sys, json, re, spacy, fileinput
-<<<<<<< HEAD
 ##testtestest
-=======
-
->>>>>>> 74d1e7606b59191ac11493882712db68c68707a2
 #toSingular is a helper function. More helper functions should be specified here
 def toSingular(noun):
     if noun.endswith("ies"):
