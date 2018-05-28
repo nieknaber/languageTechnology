@@ -1,5 +1,9 @@
 import requests, sys, json, re, spacy, fileinput
+<<<<<<< HEAD
 ##testtestest
+=======
+
+>>>>>>> 74d1e7606b59191ac11493882712db68c68707a2
 #toSingular is a helper function. More helper functions should be specified here
 def toSingular(noun):
     if noun.endswith("ies"):
@@ -42,7 +46,7 @@ def fun(question):
     pattern = '(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )((of |in |on )(the |a |an |one )?([\w\s\'\-]+)){1,}(\?)?'
     whowhat = re.search(pattern, question, re.IGNORECASE)
     ##count question Jussi
-    pattern = ''
+    pattern = '(how)(many)?([\w\s\'\-]+?)'
     count = re.search(pattern, question, re.IGNORECASE)
     
     ##yesno question Ivo
