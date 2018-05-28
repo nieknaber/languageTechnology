@@ -40,7 +40,7 @@ def fun(question):
     
     ## whowhat question Niek
     pattern = '(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )((of |in |on )(the |a |an |one )?([\w\s\'\-]+)){1,}(\?)?'
-    whowhat = re.search(pattern, question, re.IGNORECASE))
+    whowhat = re.search(pattern, question, re.IGNORECASE)
     ##count question Jussi
     pattern = ''
     count = re.search(pattern, question, re.IGNORECASE)
@@ -50,9 +50,9 @@ def fun(question):
 
     if(whowhat): ##if match with the previous regex...
         pass
-    else if(count):
+    elif(count):
         pass
-    else if(yesno):
+    elif(yesno):
         pass
 
 
@@ -133,7 +133,7 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
                         if (option == "normal"):
                             ans = ('{}'.format(item[var]['value']))
                             print(ans)
-                        else if (option == "count"):
+                        elif (option == "count"):
                             cnt +=1
 
                         check = True ##if there is a proper answer, this is set to true
