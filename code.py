@@ -44,6 +44,7 @@ def fun(question):
     ##count question Jussi
     pattern = ''
     count = re.search(pattern, question, re.IGNORECASE)
+    
     ##yesno question Ivo
     pattern = ''
     yesno = re.search(pattern, question, re.IGNORECASE)
