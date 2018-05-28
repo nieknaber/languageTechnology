@@ -37,7 +37,25 @@ def whoWhat(question):
     pass
 
 def fun(question):
-    pass
+    
+    ## whowhat question Niek
+    pattern = '(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )((of |in |on )(the |a |an |one )?([\w\s\'\-]+)){1,}(\?)?'
+    whowhat = re.search(pattern, question, re.IGNORECASE))
+    ##count question Jussi
+    pattern = ''
+    count = re.search(pattern, question, re.IGNORECASE)
+    ##yesno question Ivo
+    pattern = ''
+    yesno = re.search(pattern, question, re.IGNORECASE)
+
+    if(whowhat): ##if match with the previous regex...
+        pass
+    else if(count):
+        pass
+    else if(yesno):
+        pass
+
+
     #try different regex formats of questions. If you get a match, call corresponding function
     #if no regex match is found, try language analysis with spacy
 
