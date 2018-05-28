@@ -79,9 +79,8 @@ def search(entity, entOrProp, form = 'raw'): ## make list of entity or property 
 #should be modified, possibly by adding options like form = 'whowhat' or form = 'count'. 
 def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, terminate
     
-    if(not(option == "normal") and not(option == "count")){
+    if(not(option == "normal") and not(option == "count")):
         print("You're using the sparql function wrong: SPECIFIED OPTION NOT AVAILABLE")
-    }
     
     check = False ##check if answer has already been given
     sparqlUrl = 'https://query.wikidata.org/sparql'
