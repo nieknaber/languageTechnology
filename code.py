@@ -25,8 +25,7 @@ def deleteQuestionWords(nouns):
         if ((nouns[i].text == "what") or (nouns[i].text == "who") or 
         (nouns[i].text == "when") or (nouns[i].text == "where") or 
         (nouns[i].text == "What") or (nouns[i].text == "Who") or 
-        (nouns[i].text == "When") or (nouns[i].text == "Where") or
-        (nouns[i].text == "an overview") or (nouns[i].text == "overview")):
+        (nouns[i].text == "When") or (nouns[i].text == "Where")):
             del(nouns[i])
             length -= 1
         else:
@@ -78,9 +77,16 @@ def search(entity, entOrProp, form = 'raw'): ## make list of entity or property 
     return li
 
 #should be modified, possibly by adding options like form = 'whowhat' or form = 'count'. 
-def sparql(li, li2): ## search answer, if answer is found, terminate
+def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, terminate
+    
+    if(not(option == "normal") and not(option == "count")){
+        print("You're using the sparql function wrong: SPECIFIED OPTION NOT AVAILABLE")
+    }
+    
     check = False ##check if answer has already been given
     sparqlUrl = 'https://query.wikidata.org/sparql'
+
+    cnt = 0
 
     q1 = """SELECT ?itemLabel 
     WHERE 
@@ -94,10 +100,12 @@ def sparql(li, li2): ## search answer, if answer is found, terminate
 
         if check: ## if this is true, a proper answer has been given, no need to search further
             return check
+            print(cnt)
         wd = ("{}".format(result['id']))
         
         for result2 in li2:
             if check: ## if this is true, a proper answer has been given, no need to search further
+                print(cnt)
                 return check
             wdt = ("{}".format(result2['id']))
             query = q1 + "wd:" + wd + " wdt:" + wdt + " ?item." + q2 ## make query
@@ -105,8 +113,12 @@ def sparql(li, li2): ## search answer, if answer is found, terminate
             answer = requests.get(sparqlUrl,params={'query': query, 'format': 'json'}).json() ## query wikidata
             for item in answer['results']['bindings']:
                     for var in item :
-                        ans = ('{}'.format(item[var]['value']))
-                        print(ans)
+                        if (option == "normal"):
+                            ans = ('{}'.format(item[var]['value']))
+                            print(ans)
+                        else if (option == "count"):
+                            cnt +=1
+
                         check = True ##if there is a proper answer, this is set to true
     return check
 
