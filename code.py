@@ -84,7 +84,7 @@ def fun(question):
     pattern = '(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
     whowhat = re.search(pattern, question, re.IGNORECASE)
     ##count question Jussi
-    pattern = '(how)(many)?([\w\s\'\-]+?)'
+    pattern = '(how |count )(many )?([\w\s\'\-]+?)(\?)?'
     count = re.search(pattern, question, re.IGNORECASE)
     
     ##yesno question Ivo
@@ -93,7 +93,7 @@ def fun(question):
 
     if(whowhat): ##if match with the previous regex...
         whoWhat(whowhat)
-    elif(count):
+    else if(count):
         pass
     elif(yesno):
         pass
