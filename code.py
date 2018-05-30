@@ -93,7 +93,7 @@ def fun(question):
 
     if(whowhat): ##if match with the previous regex...
         whoWhat(whowhat)
-    else if(count):
+    elif(count):
         pass
     elif(yesno):
         pass
