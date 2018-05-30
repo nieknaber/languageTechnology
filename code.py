@@ -44,7 +44,7 @@ def fun(question):
 	
 	
     ##count question Jussi
-    pattern = '(how)(many)?([\w\s\'\-]+?)'
+    pattern = '(how |count )(many )?([\w\s\'\-]+?)(\?)?'
     count = re.search(pattern, question, re.IGNORECASE)
 	
 	
@@ -55,6 +55,7 @@ def fun(question):
     if(whowhat): ##if match with the previous regex...
         pass
     else if(count):
+	    #
         pass
     else if(yesno):
         pass
