@@ -3,16 +3,28 @@ import requests, sys, json, re, spacy, fileinput
 #toSingular is a helper function. More helper functions should be specified here
 def toSingular(noun):
     if noun.endswith("ies"):
-        return noun[:-4] + "y"
-    if noun.endswith("ves"):
-        return noun[:-4] + "fe"
-    if noun.endswith("oes"):
-        return noun[:-3]
-    elif noun.endswith("es"):
-        return noun[:-3]
-    elif noun.endswith("s"):
+        return noun[:-3] + "y"
+    elif noun.endswith("ves"):
+        return noun[:-3] + "fe"
+    elif noun.endswith("oes"):
         return noun[:-2]
+    elif noun.endswith("es"):
+        return noun[:-2]
+    elif noun.endswith("s"):
+        return noun[:-1]
     elif noun.endswith("i"):
+        return noun[:-1] + "us"
+    elif noun.endswith("ies "):
+        return noun[:-4] + "y"
+    elif noun.endswith("ves "):
+        return noun[:-4] + "fe"
+    elif noun.endswith("oes "):
+        return noun[:-3]
+    elif noun.endswith("es "):
+        return noun[:-3]
+    elif noun.endswith("s "):
+        return noun[:-2]
+    elif noun.endswith("i "):
         return noun[:-2] + "us"
     else:
         return noun
@@ -33,13 +45,43 @@ def deleteQuestionWords(nouns):
     return nouns
 
 ##here regex specific functions are going to be specified
-def whoWhat(question):
-    pass
+def whoWhat(regex): 
+    x = regex.group(4) ## x contains first noun
+    y = regex.group(7) ## contains one noun, or a group of multiple nouns seperated by a proposition
+
+    li = []
+    li.append(x)
+
+    pattern = '(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
+    se = re.search(pattern, y, re.IGNORECASE)
+    
+    while(se):
+        x = se.group(2)
+        y = se.group(5)
+        li.append(x)
+        se = re.search(pattern, y, re.IGNORECASE)
+    li.append(y)
+    ########################################### list of properties/nouns has been made
+
+    i = len(li) - 1
+
+    ans = []
+    ans.append(li[i])
+
+    while (i>0):
+        prop = li[i-1]
+        entQ = search(ans[0], 'entity')
+        propQ = search(prop, 'property')
+        ans = sparql(entQ, propQ, 'silent')
+        i -= 1
+    for answer in ans:
+        print(answer)
+
 
 def fun(question):
     
     ## whowhat question Niek
-    pattern = '(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )((of |in |on )(the |a |an |one )?([\w\s\'\-]+)){1,}(\?)?'
+    pattern = '(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
     whowhat = re.search(pattern, question, re.IGNORECASE)
     ##count question Jussi
     pattern = '(how)(many)?([\w\s\'\-]+?)'
@@ -51,7 +93,7 @@ def fun(question):
     yesno = re.search(pattern, question, re.IGNORECASE)
 
     if(whowhat): ##if match with the previous regex...
-        pass
+        whoWhat(whowhat)
     elif(count):
         pass
     elif(yesno):
@@ -93,14 +135,16 @@ def searchHelper(entity, entOrProp): ## make list of entity or property codes
 def search(entity, entOrProp, form = 'raw'): ## make list of entity or property codes
     
     li = searchHelper(entity, entOrProp)
-    if(form == 'raw'): li += searchHelper(toSingular(entity), entOrProp)
+    single = toSingular(entity)
+    if(form == 'raw' and not(single == entity)): li += searchHelper(toSingular(entity), entOrProp)
     return li
 
 #should be modified, possibly by adding options like form = 'whowhat' or form = 'count'. 
 def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, terminate
     
-    if(not(option == "normal") and not(option == "count")):
+    if(not(option == "normal") and not(option == "count") and not(option == "silent")):
         print("You're using the sparql function wrong: SPECIFIED OPTION NOT AVAILABLE")
+        return False
     
     check = False ##check if answer has already been given
     sparqlUrl = 'https://query.wikidata.org/sparql'
@@ -118,13 +162,20 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
     for result in li: ## loop through entities and properties, untill answer is found
 
         if check: ## if this is true, a proper answer has been given, no need to search further
+            if(option == "count"):
+                    print(cnt)
+            elif(option == "silent"):
+                return li
             return check
-            print(cnt)
         wd = ("{}".format(result['id']))
-        
+        li = []
+
         for result2 in li2:
             if check: ## if this is true, a proper answer has been given, no need to search further
-                print(cnt)
+                if(option == "count"):
+                    print(cnt)
+                elif(option == "silent"):
+                    return li
                 return check
             wdt = ("{}".format(result2['id']))
             query = q1 + "wd:" + wd + " wdt:" + wdt + " ?item." + q2 ## make query
@@ -135,27 +186,24 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
                         if (option == "normal"):
                             ans = ('{}'.format(item[var]['value']))
                             print(ans)
+                        elif(option == "silent"):
+                            ans = ('{}'.format(item[var]['value']))
+                            li.append(ans)
                         elif (option == "count"):
                             cnt +=1
 
                         check = True ##if there is a proper answer, this is set to true
+    if(option == "count"):
+        print(cnt)
+    elif(option == "silent"):
+        return li
     return check
 
 def main():
 
     questions = [
-        "The population of Amsterdam is how big?",
-        "What nickname has South-Carolina?",
         "What are the timezones of Syria?",
-        "Tell the capital of Switzerland?",
-        "Who is the king of Norway?",
-        "How big is the area covered by the Sahara desert?",
-        "In which continent is Gambia located?",
-        "What is the highest point in Russia?",
-        "Give the width of the Dead Sea",
-        "Tell the coordinate location of the St James's Palace?",
-        "List the official languages in Belgium?",
-        "Give an overview of the official languages in Belgium?"
+        "What is the highest point in Russia?"
     ]
 
     for q in questions:
