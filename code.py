@@ -2,32 +2,20 @@ import requests, sys, json, re, spacy, fileinput
 ##testtestest
 #toSingular is a helper function. More helper functions should be specified here
 def toSingular(noun):
+    noun = noun.strip()
     if noun.endswith("ies"):
-        return noun[:-3] + "y"
+        return [noun[:-3] + "y"]
     elif noun.endswith("ves"):
-        return noun[:-3] + "fe"
+        return [noun[:-3] + "fe"]
     elif noun.endswith("oes"):
-        return noun[:-2]
+        return [noun[:-2]]
     elif noun.endswith("es"):
-        return noun[:-2]
+        return [noun[:-2], noun[:-1]]
     elif noun.endswith("s"):
-        return noun[:-1]
+        return [noun[:-1]]
     elif noun.endswith("i"):
-        return noun[:-1] + "us"
-    elif noun.endswith("ies "):
-        return noun[:-4] + "y"
-    elif noun.endswith("ves "):
-        return noun[:-4] + "fe"
-    elif noun.endswith("oes "):
-        return noun[:-3]
-    elif noun.endswith("es "):
-        return noun[:-3]
-    elif noun.endswith("s "):
-        return noun[:-2]
-    elif noun.endswith("i "):
-        return noun[:-2] + "us"
-    else:
-        return noun
+        return [noun[:-1] + "us"]
+    return []
 
 
 def deleteQuestionWords(nouns):
@@ -43,6 +31,30 @@ def deleteQuestionWords(nouns):
         else:
             i += 1
     return nouns
+
+## get synonyms of the word using the oxford dictionary
+def getSynonym(noun):
+    noun = noun.strip() 
+    app_id = ' 08ce8597'
+    app_key = 'a2a7e6f4e846dc42b4571bb8f57ca15d'
+
+    language = 'en'
+    word_id = noun
+
+    url = 'https://od-api.oxforddictionaries.com:443/api/v1/entries/' + language + '/' + word_id.lower() + '/synonyms'
+
+    r = requests.get(url, headers = {'app_id': app_id, 'app_key': app_key})
+
+    li = []
+    if(r.status_code == 200):
+        # print(r.json())
+        answers = r.json()['results'][0]['lexicalEntries'][0]['entries'][0]['senses'][0]['synonyms']
+        # print(answers)
+        for syn in answers:
+            li.append(syn['text'])
+        return li
+    return False
+    
 
 ##here regex specific functions are going to be specified
 def whoWhat(regex): 
@@ -84,10 +96,9 @@ def fun(question):
     pattern = '(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
     whowhat = re.search(pattern, question, re.IGNORECASE)
     ##count question Jussi
-    pattern = '(how)(many)?([\w\s\'\-]+?)'
+    pattern = '(how |count )(many )?([\w\s\'\-]+?)(\?)?'
     count = re.search(pattern, question, re.IGNORECASE)
-	
-	
+    
     ##yesno question Ivo
     pattern = ''
     yesno = re.search(pattern, question, re.IGNORECASE)
@@ -132,11 +143,18 @@ def searchHelper(entity, entOrProp): ## make list of entity or property codes
 ##searches for the right Q code with a helper function. If mode is raw, which means the raw
 ## word(s) is given to te funcion, this function also searches for a Q code where it tries to transform 
 ## the word to singular
-def search(entity, entOrProp, form = 'raw'): ## make list of entity or property codes
+def search(noun, entOrProp, form = 'raw'): ## make list of entity or property codes
     
-    li = searchHelper(entity, entOrProp)
-    single = toSingular(entity)
-    if(form == 'raw' and not(single == entity)): li += searchHelper(toSingular(entity), entOrProp)
+    li = searchHelper(noun, entOrProp)
+    if(form == 'raw' and (entOrProp == "property")): 
+        single = toSingular(noun)
+        for entry in single:
+            li += searchHelper(entry, entOrProp)
+    if(entOrProp == 'property' and form == 'raw'): 
+        synonym = getSynonym(noun)
+        if (not synonym == False):
+            for entry in synonym:
+                li += searchHelper(entry, entOrProp)
     return li
 
 #should be modified, possibly by adding options like form = 'whowhat' or form = 'count'. 
