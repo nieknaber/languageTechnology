@@ -77,6 +77,19 @@ def whoWhat(regex):
     for answer in ans:
         print(answer)
 
+def trueFalse(regex):
+    subj1 = regex.group(5) 
+    subj2 = regex.group(9)
+    conjunction = regex.group(6).strip()
+    prop = regex.group(7)
+
+    #1 Make lists of properties and Q/R codes
+    #2 determine question type, and so search format (mode in sparqlTF)
+    #3 Additional Regex/SpaCy filter for divergent question formats
+
+    if (conjunction == "a" && prop == None): # Is X a Y --> prop is instance of
+
+
 
 def fun(question):
     
@@ -89,7 +102,7 @@ def fun(question):
 	
 	
     ##yesno question Ivo
-    pattern = ''
+    pattern = '(Is |are |were |was )(it )?(true |correct )?(that )?(.*(?= a| part of| has| is))?( a | part of | has | is |)?(.*(?= of | on | the ))?( of | on | the )?(.*(?=\?))(\?)$'
     yesno = re.search(pattern, question, re.IGNORECASE)
 
     if(whowhat): ##if match with the previous regex...
@@ -97,7 +110,7 @@ def fun(question):
     elif(count):
         pass
     elif(yesno):
-        pass
+        trueFalse(yesno)
 
 
     #try different regex formats of questions. If you get a match, call corresponding function
@@ -198,6 +211,13 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
     elif(option == "silent"):
         return li
     return check
+
+def sparqlTF(l1, l2, l3, mode = 'normal'):
+    #Figure out the question formats and the type of answer they require
+    #Do sparql lookup, loop through answer list for match
+    #Return true/false
+    
+
 
 def main():
 
