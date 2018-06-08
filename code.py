@@ -54,66 +54,6 @@ def getSynonym(noun):
             li.append(syn['text'])
         return li
     return False
-    
-
-##here regex specific functions are going to be specified
-def whoWhat(regex): 
-    x = regex.group(4) ## x contains first noun
-    y = regex.group(7) ## contains one noun, or a group of multiple nouns seperated by a proposition
-
-    li = []
-    li.append(x)
-
-    pattern = '(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
-    se = re.search(pattern, y, re.IGNORECASE)
-    
-    while(se):
-        x = se.group(2)
-        y = se.group(5)
-        li.append(x)
-        se = re.search(pattern, y, re.IGNORECASE)
-    li.append(y)
-    ########################################### list of properties/nouns has been made
-
-    i = len(li) - 1
-
-    ans = []
-    ans.append(li[i])
-
-    while (i>0):
-        prop = li[i-1]
-        entQ = search(ans[0], 'entity')
-        propQ = search(prop, 'property')
-        ans = sparql(entQ, propQ, 'silent')
-        i -= 1
-    for answer in ans:
-        print(answer)
-
-
-def fun(question):
-    
-    ## whowhat question Niek
-    pattern = '(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
-    whowhat = re.search(pattern, question, re.IGNORECASE)
-    ##count question Jussi
-    pattern = '(how |count )(many )?([\w\s\'\-]+?)(\?)?'
-    count = re.search(pattern, question, re.IGNORECASE)
-    
-    ##yesno question Ivo
-    pattern = ''
-    yesno = re.search(pattern, question, re.IGNORECASE)
-
-    if(whowhat): ##if match with the previous regex...
-        whoWhat(whowhat)
-    elif(count):
-        pass
-    elif(yesno):
-        pass
-
-
-    #try different regex formats of questions. If you get a match, call corresponding function
-    #if no regex match is found, try language analysis with spacy
-
 
 def searchHelper(entity, entOrProp): ## make list of entity or property codes
     url = 'https://www.wikidata.org/w/api.php'
@@ -215,11 +155,187 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
         print(cnt)
     elif(option == "silent"):
         return li
-    return check
+    return check 
+
+##x = entity, y = property
+def dissolveNP(x, y, option = 'normal'):
+    li = []
+    li.append(x)
+
+    pattern = '(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
+    se = re.search(pattern, y, re.IGNORECASE)
+    
+    while(se):
+        x = se.group(2)
+        y = se.group(5)
+        li.append(x)
+        se = re.search(pattern, y, re.IGNORECASE)
+    li.append(y)
+    ########################################### list of properties/nouns has been made
+
+    i = len(li) - 1
+
+    ans = []
+    ans.append(li[i])
+
+    while (i>1):
+        prop = li[i-1]
+        entQ = search(ans[0], 'entity')
+        propQ = search(prop, 'property')
+        ans = sparql(entQ, propQ, 'silent')
+        i -= 1
+    prop = li[i-1]
+    entQ = search(ans[0], 'entity')
+    propQ = search(prop, 'property')
+    ans = sparql(entQ, propQ, option)
+    return ans
+
+##here regex specific functions are going to be specified
+def countQuestion(count):
+	#assign the entity and relation to x and y
+    #x = count.group(3)
+    #y = count.group(6)
+    if(count.group(1) == 'how ' or count.group(1) == 'How '):
+        x = count.group(3)
+        y = count.group(6)
+    else:
+        x = count.group(4)
+        y = count.group(7)        
+	
+    #print('x', x, 'y', y)
+	
+	#remove 'the' and replace some relations with synonyms as they are noted in wikidata
+    x = x.replace("the ", "")
+    y = y.replace("the ", "")
+    x = x.replace(" run", "")
+    y = y.replace(" run", "")
+    x = x.replace("provinces ", "contains administrative territorial entity")
+    y = y.replace("provinces ", "contains administrative territorial entity")
+    x = x.replace("citizens ", "inhabitants")
+    y = y.replace("citizens ", "inhabitants")	
+    #print('x', x, 'y', y)
+
+    if (x == 'inhabitants' or x == 'meters' or x == 'kilometers' or y == 'inhabitants' or y == 'meters' or y == 'kilometers'): 
+	    check = dissolveNP(x, y)
+    else:
+	    check = dissolveNP(x, y, 'count')
+
+def whoWhat(regex): 
+    x = regex.group(4) ## x contains first noun
+    y = regex.group(7) ## contains one noun, or a group of multiple nouns seperated by a proposition
+
+    dissolveNP(x, y)
+
+def consistOf(regex):
+    x = regex.group(4).strip()
+    y = regex.group(1).strip()
+
+    dissolveNP(x,y)
+    
+def inWhich(regex):
+    x = regex.group(1).strip()
+    y = regex.group(3).strip()
+    
+    dissolveNP(x,y)
+
+def borders(regex):
+    x = 'shares border with'
+    y = regex.group(5).strip()
+    
+    dissolveNP(x,y)
+
+def space(question):
+
+    nlp = spacy.load('en')
+    tokenized = nlp(question.strip())
+    nouns = list(tokenized.noun_chunks)
+
+    length = len(nouns)
+    i = 0
+    while i < length: ##delete question words
+        if ((nouns[i].text == "what") or (nouns[i].text == "who") or 
+        (nouns[i].text == "when") or (nouns[i].text == "where") or 
+        (nouns[i].text == "What") or (nouns[i].text == "Who") or 
+        (nouns[i].text == "When") or (nouns[i].text == "Where") or
+        (nouns[i].text == "an overview") or (nouns[i].text == "overview")):
+            del(nouns[i])
+            length -= 1
+        else:
+            i += 1
+
+    if(len(nouns) <= 1):
+        print("No answer found")
+        return None
+    
+    x = nouns[0].text
+    y = nouns[1].text
+
+    li = search(y, 'entity')
+    y = nouns[1].root.lemma_
+    li += search(y, 'entity', 'root')
+
+    li2 = search(x, 'property')
+    x = nouns[0].root.lemma_
+    li2 += search(x, 'property', 'root')
+
+    check = sparql(li, li2)
+    if not(check): ## if nothing found try switching property and entity
+        check = sparql(li2, li)
+        if not(check):
+            print("No answer found")
+
+
+
+def fun(question):
+    
+    ## whowhat question Niek
+    pattern = '(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
+    whowhat = re.search(pattern, question, re.IGNORECASE)
+    ## consists question Niek
+    pattern = '([\w\s\'\-]+? )consist(s)? of (which |what )([\w\s\'\-]+)(\?)?$'
+    consist = re.search(pattern, question, re.IGNORECASE)
+    ## in which question Niek
+    pattern = 'in which ([\w\s\'\-]+? )(is |was |are |were )([\w\s\'\-]+?)( located)?(\?)?$'
+    inwhich = re.search(pattern, question, re.IGNORECASE)
+    ## border question Niek
+    pattern = 'which ([\w\s\'\-]+ )(share a )?(border )(with )?([\w\s\'\-]+)(\?)?$'
+    border = re.search(pattern, question, re.IGNORECASE)
+    ##count questions Jussi
+    pattern = '(how )(many )+([\w\s\'\-]+)(does |border |has |flow into |are there |are there)+(in )?([\w\s\'\-]*?)(have| pass through| cross| intersect)?(\?)?$'
+    count = re.search(pattern, question, re.IGNORECASE)
+    pattern = '(count |return |give |list )(the amount |the number )(of )?([\w\s\'\-]*?)(that border |that |in |belonging to |part of )(flow into )?([\w\s\'\-]+?)?( has| borders| passes through)?(\?)?(\.)?$'
+    count2 = re.search(pattern, question, re.IGNORECASE)
+	
+	
+    ##yesno question Ivo
+    pattern = ''
+    yesno = re.search(pattern, question, re.IGNORECASE)
+    if(whowhat): ##if match with the previous regex...
+        whoWhat(whowhat)
+    elif(consist):
+        consistOf(consist)
+    elif(inwhich):
+        inWhich(inwhich)
+    elif(border):
+        borders(border)
+    elif(count):
+	    countQuestion(count)
+    elif(count2):
+	    countQuestion(count2)
+    # elif(yesno):
+    #     pass
+    else:
+        space(question)
+    #try different regex formats of questions. If you get a match, call corresponding function
+    #if no regex match is found, try language analysis with spacy
 
 def main():
 
     questions = [
+        "Which countries border Switzerland?",
+        "Scandinavia consists of which countries?",
+        "In which country is Amsterdam located?",
+        "What is the population of the capital of the Netherlands?",
         "What are the timezones of Syria?",
         "What is the highest point in Russia?"
     ]
