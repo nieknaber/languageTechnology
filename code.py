@@ -157,6 +157,38 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
         return newLi
     return check 
 
+def sparqlTF(list_subj1, subj2, list_prop, mode = 'normal'):
+    #Figure out the question formats and the type of answer they require
+    #Do sparql lookup, loop through answer list for match
+    #Return true/false
+
+    if(not(mode == "normal")):
+        print("You're using the sparql function wrong: SPECIFIED OPTION NOT AVAILABLE")
+        return False
+
+    sparqlUrl = 'https://query.wikidata.org/sparql'
+    q1 = """SELECT ?itemLabel 
+    WHERE 
+    {"""
+    q2 = """
+    SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+    }"""
+
+    for q_code in list_subj1:
+         wd = ("{}".format(q_code['id']))
+         for p_code in list_prop:
+            wdt = ("{}".format(p_code['id']))
+            query = q1 + "wd:" + wd + " wdt:" + wdt + " ?item." + q2
+            answer = requests.get(sparqlUrl,params={'query': query, 'format': 'json'}).json()
+            for item in answer['results']['bindings']:
+                 for var in item :
+                    ans = ('{}'.format(item[var]['value']))
+                    print(ans)
+                    if (ans.lower() == subj2.lower()):
+                        return True
+
+    return False
+
 ##x = entity, y = property
 def dissolveNP(x, y, option = 'normal'):
     li = []
@@ -233,6 +265,33 @@ def countQuestion(count):
 	    return dissolveNP(x, y)
     else:
 	    return dissolveNP(x, y, 'count')
+
+def trueFalse(regex):
+    subj1 = regex.group(5) 
+    subj2 = regex.group(9)
+    conjunction = regex.group(6).strip() #use this to filter question types
+    prop = regex.group(7)
+
+    list_subj1 = search(subj1, "entity")
+    list_subj2 = search(subj2, "entity")
+
+    if (prop != None):
+        list_prop = search(prop, "property")
+        return sparqlTF(list_subj1, subj2, list_prop)
+
+    if (conjunction == "a" or conjunction == "an"): # Is X a Y --> prop is instance of
+        list_prop = search("instance of", "property")
+        return sparqlTF(list_subj1, subj2, list_prop)
+
+    if (conjunction == "part of"):
+        list_prop = search("part of", "property")
+        return sparqlTF(list_subj1, subj2, list_prop)
+
+    return "reached end of function without result"
+
+    #1 Make lists of properties and q/r codes
+    #2 determine question type, and so search format (mode in sparqlTF)
+    #3 Additional Regex/SpaCy filter for divergent question formats
 
 def whoWhat(regex): 
     x = regex.group(4) ## x contains first noun
@@ -324,11 +383,11 @@ def fun(question):
     count = re.search(pattern, question, re.IGNORECASE)
     pattern = '(count |return |give |list )(the amount |the number )(of )?([\w\s\'\-]*?)(that border |that |in |belonging to |part of )(flow into )?([\w\s\'\-]+?)?( has| borders| passes through)?(\?)?(\.)?$'
     count2 = re.search(pattern, question, re.IGNORECASE)
-	
-	
-    ##yesno question Ivo
-    pattern = ''
+	##yesno question Ivo
+    pattern = '(Is |are |were |was )(it )?(true |correct )?(that )?(.*(?= a| part of| has| is| in))?( a | part of | has | is | in )?(.*(?= of | on | the ))?( of | on | the )?(.*(?=\?))(\?)$'
     yesno = re.search(pattern, question, re.IGNORECASE)
+
+
     c = False
     if(whowhat): ##if match with the previous regex...
         c = whoWhat(whowhat)
@@ -342,8 +401,9 @@ def fun(question):
 	    c = countQuestion(count)
     elif(count2):
 	    c = countQuestion(count2)
-    # elif(yesno):
-    #     pass
+    elif(yesno):
+        print(trueFalse(yesno))
+        c = True
     if not(c):
         space(question)
     #try different regex formats of questions. If you get a match, call corresponding function
