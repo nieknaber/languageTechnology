@@ -118,22 +118,22 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
     }"""
 
     for result in li: ## loop through entities and properties, untill answer is found
-
+        wd = ("{}".format(result['id']))
+        newLi = []
         if check: ## if this is true, a proper answer has been given, no need to search further
             if(option == "count"):
                     print(cnt)
             elif(option == "silent"):
-                return li
+                return newLi
             return check
-        wd = ("{}".format(result['id']))
-        li = []
+        
 
         for result2 in li2:
             if check: ## if this is true, a proper answer has been given, no need to search further
                 if(option == "count"):
                     print(cnt)
                 elif(option == "silent"):
-                    return li
+                    return newLi
                 return check
             wdt = ("{}".format(result2['id']))
             query = q1 + "wd:" + wd + " wdt:" + wdt + " ?item." + q2 ## make query
@@ -146,7 +146,7 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
                             print(ans)
                         elif(option == "silent"):
                             ans = ('{}'.format(item[var]['value']))
-                            li.append(ans)
+                            newLi.append(ans)
                         elif (option == "count"):
                             cnt +=1
 
@@ -154,7 +154,7 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
     if(option == "count"):
         print(cnt)
     elif(option == "silent"):
-        return li
+        return newLi
     return check 
 
 ##x = entity, y = property
@@ -195,19 +195,27 @@ def countQuestion(count):
 	#assign the entity and relation to x and y
     #x = count.group(3)
     #y = count.group(6)
+	
     if(count.group(1) == 'how ' or count.group(1) == 'How '):
-        if count.group(4).trim() == 'border':
-            x = 'shares border with'
-        else:
-            x = count.group(3)
+        x = count.group(3)
         y = count.group(6)
     else:
-        if count.group(5).trim() == 'that border' or count.group(8).trim() == 'borders':
-            x = 'shares border with'
-        else:
-            x = count.group(4)
+        x = count.group(4)
         y = count.group(7)        
-	
+
+
+ #   if(count.group(1) == 'how ' or count.group(1) == 'How '):
+  #      if count.group(4).strip() == 'border':
+  #          x = 'shares border with'
+  #      else:
+  #          x = count.group(3)
+  #      y = count.group(6)
+  #  else:
+  #      if count.group(5).strip() == 'that border' or count.group(8).strip() == 'borders':
+  #          x = 'shares border with'
+  #      else:
+  #          x = count.group(4)
+  #      y = count.group(7)        	
     #print('x', x, 'y', y)
 	
 	#remove 'the' and replace some relations with synonyms as they are noted in wikidata
@@ -222,33 +230,38 @@ def countQuestion(count):
     #print('x', x, 'y', y)
 
     if (x == 'inhabitants' or x == 'meters' or x == 'kilometers' or y == 'inhabitants' or y == 'meters' or y == 'kilometers'): 
-	    check = dissolveNP(x, y)
+	    return dissolveNP(x, y)
     else:
-	    check = dissolveNP(x, y, 'count')
+	    return dissolveNP(x, y, 'count')
 
 def whoWhat(regex): 
     x = regex.group(4) ## x contains first noun
     y = regex.group(7) ## contains one noun, or a group of multiple nouns seperated by a proposition
 
-    dissolveNP(x, y)
+    return dissolveNP(x, y)
 
 def consistOf(regex):
     x = regex.group(4).strip()
     y = regex.group(1).strip()
 
-    dissolveNP(x,y)
+    return dissolveNP(x,y)
     
 def inWhich(regex):
     x = regex.group(1).strip()
     y = regex.group(3).strip()
     
-    dissolveNP(x,y)
+    return dissolveNP(x,y)
 
 def borders(regex):
-    x = 'shares border with'
+    x = regex.group(1).strip()
     y = regex.group(5).strip()
     
-    dissolveNP(x,y)
+    check = dissolveNP(x,y)
+    if not(check):
+        x = 'shares border with'
+        return dissolveNP(x,y)
+    else:
+        return True
 
 def space(question):
 
@@ -316,21 +329,22 @@ def fun(question):
     ##yesno question Ivo
     pattern = ''
     yesno = re.search(pattern, question, re.IGNORECASE)
+    c = False
     if(whowhat): ##if match with the previous regex...
-        whoWhat(whowhat)
+        c = whoWhat(whowhat)
     elif(consist):
-        consistOf(consist)
+        c = consistOf(consist)
     elif(inwhich):
-        inWhich(inwhich)
+        c = inWhich(inwhich)
     elif(border):
-        borders(border)
+        c = borders(border)
     elif(count):
-	    countQuestion(count)
+	    c = countQuestion(count)
     elif(count2):
-	    countQuestion(count2)
+	    c = countQuestion(count2)
     # elif(yesno):
     #     pass
-    else:
+    if not(c):
         space(question)
     #try different regex formats of questions. If you get a match, call corresponding function
     #if no regex match is found, try language analysis with spacy
@@ -338,6 +352,7 @@ def fun(question):
 def main():
 
     questions = [
+        "list the amount of rivers that flow into Lake Superior?",
         "Which countries border Switzerland?",
         "Scandinavia consists of which countries?",
         "In which country is Amsterdam located?",
