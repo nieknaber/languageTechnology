@@ -196,10 +196,16 @@ def countQuestion(count):
     #x = count.group(3)
     #y = count.group(6)
     if(count.group(1) == 'how ' or count.group(1) == 'How '):
-        x = count.group(3)
+        if count.group(4).trim() == 'border':
+            x = 'shares border with'
+        else:
+            x = count.group(3)
         y = count.group(6)
     else:
-        x = count.group(4)
+        if count.group(5).trim() == 'that border' or count.group(8).trim() == 'borders':
+            x = 'shares border with'
+        else:
+            x = count.group(4)
         y = count.group(7)        
 	
     #print('x', x, 'y', y)
