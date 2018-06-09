@@ -360,30 +360,38 @@ def space(question):
             length -= 1
         else:
             i += 1
-
-    if(len(nouns) <= 1):
+    length = len(nouns)
+    if(length <= 1):
         print("No answer found")
         return None
 
 
-    x = nouns[0].text
-    y = nouns[1].text
-
-    li = search(y, 'entity')
-    y = nouns[1].root.lemma_
-    li += search(y, 'entity', 'root')
-
-    li2 = search(x, 'property')
-    x = nouns[0].root.lemma_
-    li2 += search(x, 'property', 'root')
-
-    check = sparql(li, li2)
-    if not(check): ## if nothing found try switching property and entity
-        check = sparql(li2, li)
-        if not(check):
+    # x = nouns[length - 2].text
+    # y = nouns[length - 1].text
+    i = length - 1
+    ans = []
+    ans.append(nouns[i])
+    prop = nouns[i-1]
+    entQ = search(ans[0], 'entity')
+    entQ += search(ans[0].root.lemma_, 'entity')
+    propQ = search(prop, 'property')
+    propQ += search(prop.root.lemma_, 'property', 'root')
+    
+    while (i>1):
+        ans = sparql(entQ, propQ, 'silent')
+        if not(ans): sparql(propQ, entQ, 'silent')
+        i -= 1
+        prop = nouns[i-1]
+        entQ = search(ans[0], 'entity')
+        propQ = search(prop, 'property')
+        propQ += search(prop.root.lemma_, 'property', 'root')
+    ans = sparql(entQ, propQ)
+    if not(ans): 
+        ans2 = sparql(propQ, entQ)
+        if not(ans2):
             print("No answer found")
-
-
+            return False
+    else: return ans
 
 def fun(question):
     
