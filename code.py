@@ -365,16 +365,11 @@ def space(question):
         print("No answer found")
         return None
 
-
-    # x = nouns[length - 2].text
-    # y = nouns[length - 1].text
     i = length - 1
-    ans = []
-    ans.append(nouns[i])
     prop = nouns[i-1]
-    entQ = search(ans[0], 'entity')
-    entQ += search(ans[0].root.lemma_, 'entity')
-    propQ = search(prop, 'property')
+    entQ = search(nouns[i].text, 'entity')
+    entQ += search(nouns[i].root.lemma_, 'entity')
+    propQ = search(prop.text, 'property')
     propQ += search(prop.root.lemma_, 'property', 'root')
     
     while (i>1):
@@ -383,7 +378,7 @@ def space(question):
         i -= 1
         prop = nouns[i-1]
         entQ = search(ans[0], 'entity')
-        propQ = search(prop, 'property')
+        propQ = search(prop.text, 'property')
         propQ += search(prop.root.lemma_, 'property', 'root')
     ans = sparql(entQ, propQ)
     if not(ans): 
@@ -459,15 +454,13 @@ def fun(question):
     #if no regex match is found, try language analysis with spacy
 
 def main():
-
-    # parser = OptionParser()
-    # parser.add_option("-d", "--debug",
-    #                 action="store_false", dest="verbose", default=True,
-    #                 help="don't print status messages to stdout")
-
-    # (options, args) = parser.parse_args()
+    global DEBUG
+    for arg in sys.argv:
+        if arg == '-d' or arg == '--debug':
+             DEBUG = True
+    
     questions = [
-        # "How big is the surface of the sahara desert?",
+        "How big is the surface of the sahara desert?",
         # "How many countries border lake Victoria?",
         # "In what country is the Arc de Triomphe located?",
         # "Is Australia a continent?",
