@@ -1,4 +1,5 @@
 import requests, sys, json, re, spacy, fileinput
+from optparse import OptionParser
 ##testtestest
 #toSingular is a helper function. More helper functions should be specified here
 DEBUG = False
@@ -47,6 +48,8 @@ def getSynonym(noun):
 
     r = requests.get(url, headers = {'app_id': app_id, 'app_key': app_key})
 
+    check = False
+
     li = []
     if(r.status_code == 200):
         # print(r.json())
@@ -54,6 +57,18 @@ def getSynonym(noun):
         # print(answers)
         for syn in answers:
             li.append(syn['text'])
+        check = True
+
+    if noun == "people":
+        li.append("population")
+        check = True
+    elif noun == "provinces": 
+        li.append("contains administrative territorial entity")
+        check = True
+    elif noun == "citizens":
+        li.append("population")
+        check = True
+    if check:
         return li
     return False
 
@@ -231,9 +246,6 @@ def dissolveNP(x, y, option = 'normal'):
 
 ##here regex specific functions are going to be specified
 def countQuestion(count):
-	#assign the entity and relation to x and y
-    #x = count.group(3)
-    #y = count.group(6)
 	
     if(count.group(1) == 'how ' or count.group(1) == 'How '):
         x = count.group(3)
@@ -242,21 +254,17 @@ def countQuestion(count):
         x = count.group(4)
         y = count.group(7)        
 	
-	#remove 'the' and replace some relations with synonyms as they are noted in wikidata
+	#remove 'the'
     x = x.replace("the ", "")
     y = y.replace("the ", "")
     x = x.replace(" run", "")
     y = y.replace(" run", "")
-    x = x.replace("provinces ", "contains administrative territorial entity")
-    y = y.replace("provinces ", "contains administrative territorial entity")
-    x = x.replace("citizens ", "inhabitants")
-    y = y.replace("citizens ", "inhabitants")	
-    #print('x', x, 'y', y)
 
     x = x.strip()
     y = y.strip()
     f = count.group(1).strip().lower()
-    if (x == 'inhabitants' or x == 'meters' or x == 'kilometers' or y == 'inhabitants' or y == 'meters' or 
+    
+    if (x == 'citizens' or x == 'inhabitants' or x == "people" or x == 'meters' or x == 'kilometers' or y == 'inhabitants' or y == 'meters' or 
     y == 'kilometers' or f == 'return' or f == 'give' or f == 'list' or f == 'name' or f == 'state'): 
         adj = ""
         if not(count.group(2) == None): adj = count.group(2).strip().lower()
@@ -294,10 +302,16 @@ def trueFalse(regex):
     #3 Additional Regex/SpaCy filter for divergent question formats
 
 def whoWhat(regex): 
-    x = regex.group(4) ## x contains first noun
-    y = regex.group(7) ## contains one noun, or a group of multiple nouns seperated by a proposition
+    x = regex.group(4).strip() ## x contains first noun
+    y = regex.group(7).strip() ## contains one noun, or a group of multiple nouns seperated by a proposition
 
     return dissolveNP(x, y)
+
+def whatAre(regex):
+    x = regex.group(2).strip()
+    y = regex.group(5).strip()
+
+    return dissolveNP(x,y)
 
 def consistOf(regex):
     x = regex.group(4).strip()
@@ -325,8 +339,6 @@ def borders(regex):
 def flows(regex):
     x = regex.group(2).strip()
     y = regex.group(4).strip()
-    print(x)
-    print(y)
     
     return dissolveNP(x,y)
 
@@ -378,6 +390,9 @@ def fun(question):
     ## whowhat question Niek
     pattern = '^(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
     whowhat = re.search(pattern, question, re.IGNORECASE)
+    ## whatare question Niek
+    pattern = '^(what |which )([\w\s\'\-]+? )(is |are |was |were )(in |of |part of )([\w\s\'\-]+)(\.|\?)?$'
+    whatare = re.search(pattern, question, re.IGNORECASE)
     ## consists question Niek
     pattern = '^([\w\s\'\-]+? )consist(s)? of (which |what )([\w\s\'\-]+)(\?)?$'
     consist = re.search(pattern, question, re.IGNORECASE)
@@ -391,12 +406,12 @@ def fun(question):
     pattern = '^Through (which |what )([\w\s\'\-]+? )(flows |does )([\w\s\'\-]+?)( flow)(\?|\.)?$'
     flow = re.search(pattern, question, re.IGNORECASE)
     ##count questions Jussi
-    pattern = '^(how )(many |big )+([\w\s\'\-]+)(is |was |were |are |does |border |has |flow into |are there |are there)+(in )?([\w\s\'\-]*?)(have| pass through| cross| intersect)?(\?)?$'
+    pattern = '^(how )(many |big )+([\w\s\'\-]+)(is |was |were |are |does |border |has |flow into |are there |are there |live |have )+(in )?([\w\s\'\-]*?)(have| pass through| cross| intersect)?(\?)?$'
     count = re.search(pattern, question, re.IGNORECASE)
-    pattern = '^(count |return |give |list |name |state )(the amount |the number |the height |the size |all )?(of )?([\w\s\'\-]+? )(that border |that |in |of |belonging to |part of )(flow into )?([\w\s\'\-]+?)?( has| borders| passes through)?(\?)?(\.)?$'
+    pattern = '^(count |return |give |list |name |state )(the amount |the number |the height |the size |all )?(of |in )?([\w\s\'\-]+? )(that border |that |in |of |belonging to |part of )(flow into )?([\w\s\'\-]+?)?( has| borders| passes through)?(\?)?(\.)?$'
     count2 = re.search(pattern, question, re.IGNORECASE)
 	##yesno question Ivo
-    pattern = '^(Is |are |were |was )(it )?(true |correct )?(that )?(.*(?= a| part of| has| is| in))?( a | part of | has | is | in )?(.*(?= of | on | the ))?( of | on | the )?(.*(?=\?))(\?)$'
+    pattern = '^(Is |are |were |was )(it )?(true |correct )?(that )?(.*(?= a| part of| has| is| in))?( a | part of | has | is | in )?(.*(?= of | on | the | in ))?( of | on | the | in )?(.*(?=\?))(\?)$'
     yesno = re.search(pattern, question, re.IGNORECASE)
 
 
@@ -404,6 +419,9 @@ def fun(question):
     if(whowhat): ##if match with the previous regex...
         if DEBUG: print("whowhat")
         c = whoWhat(whowhat)
+    elif(whatare):
+        if DEBUG: print("whatare")
+        c = whatAre(whatare)
     elif(consist):
         if DEBUG: print("sonsist")
         c = consistOf(consist)
@@ -434,22 +452,26 @@ def fun(question):
 
 def main():
 
+    # parser = OptionParser()
+    # parser.add_option("-d", "--debug",
+    #                 action="store_false", dest="verbose", default=True,
+    #                 help="don't print status messages to stdout")
+
+    # (options, args) = parser.parse_args()
     questions = [
-        "What is the population of the capital of the netherlands?",
-        "what is the number of the inhabitants of the capital of the netherlands?",
-        "How big is the surface of the sahara desert?",
-        "How many countries border lake Victoria?",
-        "In what country is the Arc de Triomphe located?",
-        "Is Australia a continent?",
-        "List all administrative territorial entities in the Netherlands?",
-        "List the official languages of New Zealand.",
-        "Name the motto of Canada",
-        "On which continent is the Onyx River located?",
-        "State the highest peak in Jamaica",
-        "State the height of the highest peak in Jamaica.", 
-        "Through what countries does the Rhine flow?",
-        "What are the official languages in Belgium?",
-        "What countries are part of the Benelux"
+        # "How big is the surface of the sahara desert?",
+        # "How many countries border lake Victoria?",
+        # "In what country is the Arc de Triomphe located?",
+        # "Is Australia a continent?",
+        # "List all administrative territorial entities in the Netherlands?",
+        # "List the official languages of New Zealand.",
+        # "Name the motto of Canada",
+        # "On which continent is the Onyx River located?",
+        # "State the highest peak in Jamaica",
+        # "State the height of the highest peak in Jamaica.", 
+        # "Through what countries does the Rhine flow?",
+        # "What are the official languages in Belgium?",
+        # "What countries are part of the Benelux"
     ]
 
     for q in questions:
