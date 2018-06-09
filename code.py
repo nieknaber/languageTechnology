@@ -40,26 +40,26 @@ def deleteQuestionWords(nouns):
 def getSynonym(noun):
     if DEBUG: print("synonyms searched")
     noun = noun.strip() 
-    app_id = ' 08ce8597'
-    app_key = 'a2a7e6f4e846dc42b4571bb8f57ca15d'
-
-    language = 'en'
-    word_id = noun
-
-    url = 'https://od-api.oxforddictionaries.com:443/api/v1/entries/' + language + '/' + word_id.lower() + '/synonyms'
-
-    r = requests.get(url, headers = {'app_id': app_id, 'app_key': app_key})
-
-    check = False
-
     li = []
-    if(r.status_code == 200):
-        # print(r.json())
-        answers = r.json()['results'][0]['lexicalEntries'][0]['entries'][0]['senses'][0]['synonyms']
-        # print(answers)
-        for syn in answers:
-            li.append(syn['text'])
-        check = True
+    if SYNONYMS:
+        if DEBUG: print("Synonym API used")
+        app_id = ' 08ce8597'
+        app_key = 'a2a7e6f4e846dc42b4571bb8f57ca15d'
+
+        language = 'en'
+        word_id = noun
+
+        url = 'https://od-api.oxforddictionaries.com:443/api/v1/entries/' + language + '/' + word_id.lower() + '/synonyms'
+
+        r = requests.get(url, headers = {'app_id': app_id, 'app_key': app_key})
+
+        check = False
+
+        if(r.status_code == 200):
+            answers = r.json()['results'][0]['lexicalEntries'][0]['entries'][0]['senses'][0]['synonyms']
+            for syn in answers:
+                li.append(syn['text'])
+            check = True
 
     if noun == "people":
         li.append("population")
@@ -109,7 +109,7 @@ def search(noun, entOrProp, form = 'raw'): ## make list of entity or property co
         single = toSingular(noun)
         for entry in single:
             li += searchHelper(entry, entOrProp)
-    if(SYNONYMS and entOrProp == 'property' and form == 'raw'): 
+    if(entOrProp == 'property' and form == 'raw'): 
         synonym = getSynonym(noun)
         if (not synonym == False):
             for entry in synonym:
