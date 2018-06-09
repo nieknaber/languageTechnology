@@ -3,6 +3,7 @@ from optparse import OptionParser
 ##testtestest
 #toSingular is a helper function. More helper functions should be specified here
 DEBUG = False
+SYNONYMS = False
 
 def toSingular(noun):
     noun = noun.strip()
@@ -37,6 +38,7 @@ def deleteQuestionWords(nouns):
 
 ## get synonyms of the word using the oxford dictionary
 def getSynonym(noun):
+    if DEBUG: print("synonyms searched")
     noun = noun.strip() 
     app_id = ' 08ce8597'
     app_key = 'a2a7e6f4e846dc42b4571bb8f57ca15d'
@@ -107,7 +109,7 @@ def search(noun, entOrProp, form = 'raw'): ## make list of entity or property co
         single = toSingular(noun)
         for entry in single:
             li += searchHelper(entry, entOrProp)
-    if(entOrProp == 'property' and form == 'raw'): 
+    if(SYNONYMS and entOrProp == 'property' and form == 'raw'): 
         synonym = getSynonym(noun)
         if (not synonym == False):
             for entry in synonym:
@@ -455,9 +457,12 @@ def fun(question):
 
 def main():
     global DEBUG
+    global SYNONYMS
     for arg in sys.argv:
         if arg == '-d' or arg == '--debug':
              DEBUG = True
+        if arg == '-s' or arg == '--synonyms':
+            SYNONYMS = True
     
     questions = [
         "How big is the surface of the sahara desert?",
