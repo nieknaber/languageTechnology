@@ -1,6 +1,8 @@
 import requests, sys, json, re, spacy, fileinput
 ##testtestest
 #toSingular is a helper function. More helper functions should be specified here
+DEBUG = False
+
 def toSingular(noun):
     noun = noun.strip()
     if noun.endswith("ies"):
@@ -98,6 +100,7 @@ def search(noun, entOrProp, form = 'raw'): ## make list of entity or property co
     return li
 
 #should be modified, possibly by adding options like form = 'whowhat' or form = 'count'. 
+#li = entity, li2 = property
 def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, terminate
     
     if(not(option == "normal") and not(option == "count") and not(option == "silent")):
@@ -117,8 +120,8 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
     SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
     }"""
 
-    for result in li: ## loop through entities and properties, untill answer is found
-        wd = ("{}".format(result['id']))
+    for result in li2: ## loop through entities and properties, untill answer is found
+        wdt = ("{}".format(result['id']))
         newLi = []
         if check: ## if this is true, a proper answer has been given, no need to search further
             if(option == "count"):
@@ -128,29 +131,29 @@ def sparql(li, li2, option = 'normal'): ## search answer, if answer is found, te
             return check
         
 
-        for result2 in li2:
+        for result2 in li:
             if check: ## if this is true, a proper answer has been given, no need to search further
                 if(option == "count"):
                     print(cnt)
                 elif(option == "silent"):
                     return newLi
                 return check
-            wdt = ("{}".format(result2['id']))
+            wd = ("{}".format(result2['id']))
             query = q1 + "wd:" + wd + " wdt:" + wdt + " ?item." + q2 ## make query
 
             answer = requests.get(sparqlUrl,params={'query': query, 'format': 'json'}).json() ## query wikidata
             for item in answer['results']['bindings']:
-                    for var in item :
-                        if (option == "normal"):
-                            ans = ('{}'.format(item[var]['value']))
-                            print(ans)
-                        elif(option == "silent"):
-                            ans = ('{}'.format(item[var]['value']))
-                            newLi.append(ans)
-                        elif (option == "count"):
-                            cnt +=1
+                for var in item :
+                    if (option == "normal"):
+                        ans = ('{}'.format(item[var]['value']))
+                        print(ans)
+                    elif(option == "silent"):
+                        ans = ('{}'.format(item[var]['value']))
+                        newLi.append(ans)
+                    elif (option == "count"):
+                        cnt +=1
 
-                        check = True ##if there is a proper answer, this is set to true
+                    check = True ##if there is a proper answer, this is set to true
     if(option == "count"):
         print(cnt)
     elif(option == "silent"):
@@ -183,7 +186,7 @@ def sparqlTF(list_subj1, subj2, list_prop, mode = 'normal'):
             for item in answer['results']['bindings']:
                  for var in item :
                     ans = ('{}'.format(item[var]['value']))
-                    print(ans)
+                    if DEBUG: print(ans)
                     if (ans.lower() == subj2.lower()):
                         return True
 
@@ -217,6 +220,10 @@ def dissolveNP(x, y, option = 'normal'):
         ans = sparql(entQ, propQ, 'silent')
         i -= 1
     prop = li[i-1]
+    prop = prop.strip()
+    if prop == 'number' or prop == 'size' or prop == 'amount' :
+        print(ans[0])
+        return ans
     entQ = search(ans[0], 'entity')
     propQ = search(prop, 'property')
     ans = sparql(entQ, propQ, option)
@@ -234,21 +241,6 @@ def countQuestion(count):
     else:
         x = count.group(4)
         y = count.group(7)        
-
-
- #   if(count.group(1) == 'how ' or count.group(1) == 'How '):
-  #      if count.group(4).strip() == 'border':
-  #          x = 'shares border with'
-  #      else:
-  #          x = count.group(3)
-  #      y = count.group(6)
-  #  else:
-  #      if count.group(5).strip() == 'that border' or count.group(8).strip() == 'borders':
-  #          x = 'shares border with'
-  #      else:
-  #          x = count.group(4)
-  #      y = count.group(7)        	
-    #print('x', x, 'y', y)
 	
 	#remove 'the' and replace some relations with synonyms as they are noted in wikidata
     x = x.replace("the ", "")
@@ -261,8 +253,16 @@ def countQuestion(count):
     y = y.replace("citizens ", "inhabitants")	
     #print('x', x, 'y', y)
 
-    if (x == 'inhabitants' or x == 'meters' or x == 'kilometers' or y == 'inhabitants' or y == 'meters' or y == 'kilometers'): 
-	    return dissolveNP(x, y)
+    x = x.strip()
+    y = y.strip()
+    f = count.group(1).strip().lower()
+    if (x == 'inhabitants' or x == 'meters' or x == 'kilometers' or y == 'inhabitants' or y == 'meters' or 
+    y == 'kilometers' or f == 'return' or f == 'give' or f == 'list' or f == 'name' or f == 'state'): 
+        adj = ""
+        if not(count.group(2) == None): adj = count.group(2).strip().lower()
+        if (adj == "the height" or adj == "the size"):
+            return dissolveNP(adj[4:], x + " of " + y)
+        return dissolveNP(x, y)
     else:
 	    return dissolveNP(x, y, 'count')
 
@@ -322,6 +322,14 @@ def borders(regex):
     else:
         return True
 
+def flows(regex):
+    x = regex.group(2).strip()
+    y = regex.group(4).strip()
+    print(x)
+    print(y)
+    
+    return dissolveNP(x,y)
+
 def space(question):
 
     nlp = spacy.load('en')
@@ -344,7 +352,8 @@ def space(question):
     if(len(nouns) <= 1):
         print("No answer found")
         return None
-    
+
+
     x = nouns[0].text
     y = nouns[1].text
 
@@ -367,44 +376,58 @@ def space(question):
 def fun(question):
     
     ## whowhat question Niek
-    pattern = '(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
+    pattern = '^(what |who )(is |are |was |were )(the |a |an |one )?([\w\s\'\-]+? )(of |in |on )(the |a |an |one )?([\w\s\'\-]+?)(\?)?$'
     whowhat = re.search(pattern, question, re.IGNORECASE)
     ## consists question Niek
-    pattern = '([\w\s\'\-]+? )consist(s)? of (which |what )([\w\s\'\-]+)(\?)?$'
+    pattern = '^([\w\s\'\-]+? )consist(s)? of (which |what )([\w\s\'\-]+)(\?)?$'
     consist = re.search(pattern, question, re.IGNORECASE)
     ## in which question Niek
-    pattern = 'in which ([\w\s\'\-]+? )(is |was |are |were )([\w\s\'\-]+?)( located)?(\?)?$'
+    pattern = '^in which ([\w\s\'\-]+? )(is |was |are |were )([\w\s\'\-]+?)( located)?(\?)?$'
     inwhich = re.search(pattern, question, re.IGNORECASE)
     ## border question Niek
-    pattern = 'which ([\w\s\'\-]+ )(share a )?(border )(with )?([\w\s\'\-]+)(\?)?$'
+    pattern = '^which ([\w\s\'\-]+ )(share a )?(border )(with )?([\w\s\'\-]+)(\?)?$'
     border = re.search(pattern, question, re.IGNORECASE)
+    ## flow question Niek
+    pattern = '^Through (which |what )([\w\s\'\-]+? )(flows |does )([\w\s\'\-]+?)( flow)(\?|\.)?$'
+    flow = re.search(pattern, question, re.IGNORECASE)
     ##count questions Jussi
-    pattern = '(how )(many )+([\w\s\'\-]+)(does |border |has |flow into |are there |are there)+(in )?([\w\s\'\-]*?)(have| pass through| cross| intersect)?(\?)?$'
+    pattern = '^(how )(many |big )+([\w\s\'\-]+)(is |was |were |are |does |border |has |flow into |are there |are there)+(in )?([\w\s\'\-]*?)(have| pass through| cross| intersect)?(\?)?$'
     count = re.search(pattern, question, re.IGNORECASE)
-    pattern = '(count |return |give |list )(the amount |the number )(of )?([\w\s\'\-]*?)(that border |that |in |belonging to |part of )(flow into )?([\w\s\'\-]+?)?( has| borders| passes through)?(\?)?(\.)?$'
+    pattern = '^(count |return |give |list |name |state )(the amount |the number |the height |the size |all )?(of )?([\w\s\'\-]+? )(that border |that |in |of |belonging to |part of )(flow into )?([\w\s\'\-]+?)?( has| borders| passes through)?(\?)?(\.)?$'
     count2 = re.search(pattern, question, re.IGNORECASE)
 	##yesno question Ivo
-    pattern = '(Is |are |were |was )(it )?(true |correct )?(that )?(.*(?= a| part of| has| is| in))?( a | part of | has | is | in )?(.*(?= of | on | the ))?( of | on | the )?(.*(?=\?))(\?)$'
+    pattern = '^(Is |are |were |was )(it )?(true |correct )?(that )?(.*(?= a| part of| has| is| in))?( a | part of | has | is | in )?(.*(?= of | on | the ))?( of | on | the )?(.*(?=\?))(\?)$'
     yesno = re.search(pattern, question, re.IGNORECASE)
 
 
     c = False
     if(whowhat): ##if match with the previous regex...
+        if DEBUG: print("whowhat")
         c = whoWhat(whowhat)
     elif(consist):
+        if DEBUG: print("sonsist")
         c = consistOf(consist)
     elif(inwhich):
+        if DEBUG: print("inwhich")
         c = inWhich(inwhich)
     elif(border):
+        if DEBUG: print("border")
         c = borders(border)
+    elif(flow):
+        if DEBUG: print("flow")
+        c = flows(flow)
     elif(count):
-	    c = countQuestion(count)
+        if DEBUG: print("count")
+        c = countQuestion(count)
     elif(count2):
-	    c = countQuestion(count2)
+        if DEBUG: print("count2")
+        c = countQuestion(count2)
     elif(yesno):
+        if DEBUG: print("yesno")
         print(trueFalse(yesno))
         c = True
     if not(c):
+        if DEBUG: print("spacy")
         space(question)
     #try different regex formats of questions. If you get a match, call corresponding function
     #if no regex match is found, try language analysis with spacy
@@ -412,13 +435,21 @@ def fun(question):
 def main():
 
     questions = [
-        "list the amount of rivers that flow into Lake Superior?",
-        "Which countries border Switzerland?",
-        "Scandinavia consists of which countries?",
-        "In which country is Amsterdam located?",
-        "What is the population of the capital of the Netherlands?",
-        "What are the timezones of Syria?",
-        "What is the highest point in Russia?"
+        "What is the population of the capital of the netherlands?",
+        "what is the number of the inhabitants of the capital of the netherlands?",
+        "How big is the surface of the sahara desert?",
+        "How many countries border lake Victoria?",
+        "In what country is the Arc de Triomphe located?",
+        "Is Australia a continent?",
+        "List all administrative territorial entities in the Netherlands?",
+        "List the official languages of New Zealand.",
+        "Name the motto of Canada",
+        "On which continent is the Onyx River located?",
+        "State the highest peak in Jamaica",
+        "State the height of the highest peak in Jamaica.", 
+        "Through what countries does the Rhine flow?",
+        "What are the official languages in Belgium?",
+        "What countries are part of the Benelux"
     ]
 
     for q in questions:
