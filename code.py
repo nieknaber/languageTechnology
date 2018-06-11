@@ -41,6 +41,8 @@ def getSynonym(noun):
     if DEBUG: print("synonyms searched")
     noun = noun.strip() 
     li = []
+
+    check = False
     if SYNONYMS:
         if DEBUG: print("Synonym API used")
         app_id = ' 08ce8597'
@@ -52,8 +54,6 @@ def getSynonym(noun):
         url = 'https://od-api.oxforddictionaries.com:443/api/v1/entries/' + language + '/' + word_id.lower() + '/synonyms'
 
         r = requests.get(url, headers = {'app_id': app_id, 'app_key': app_key})
-
-        check = False
 
         if(r.status_code == 200):
             answers = r.json()['results'][0]['lexicalEntries'][0]['entries'][0]['senses'][0]['synonyms']
@@ -70,6 +70,8 @@ def getSynonym(noun):
     elif noun == "citizens":
         li.append("population")
         check = True
+    elif noun == "states" or noun == "state":
+        li.append("contains administrative territorial entity")
     if check:
         return li
     return False
@@ -249,32 +251,59 @@ def dissolveNP(x, y, option = 'normal'):
 ##here regex specific functions are going to be specified
 def countQuestion(count):
 	
-    if(count.group(1) == 'how ' or count.group(1) == 'How '):
+    first = count.group(1).strip().lower()
+    if(first == 'how'):
+        list = []
         x = count.group(3)
-        y = count.group(6)
+        y = count.group(7)
+        list  = search(count.group(7), 'entity')
+        list2 = search('instance of', 'property')
+        cntry = sparql(list, list2, 'silent')
+        if not(count.group(4) == None) and (count.group(4).strip() == 'share a border' or count.group(4).strip() == 'neighbour' or count.group(3).strip() == 'neighbouring states' or (count.group(4).strip() == 'border' and cntry[0] == 'country')):
+            x = 'shares border with'
+            y = count.group(7)
+        else:
+            x = count.group(3)
+            y = count.group(7)
     else:
-        x = count.group(4)
-        y = count.group(7)        
-	
+        if not(count.group(11) == None) and (count.group(11).strip() == 'borders' or count.group(11).strip() == 'shares a border with' or count.group(4).strip() == 'bordering countries ' or count.group(4).strip() == 'neighbouring states '):
+            x = 'shares border with'
+            y = count.group(10)
+        else:
+            x = count.group(4)
+            y = count.group(10)              
+
+    #print(x)
+    #print(y)
+
 	#remove 'the'
     x = x.replace("the ", "")
     y = y.replace("the ", "")
     x = x.replace(" run", "")
     y = y.replace(" run", "")
+    x = x.replace("provinces ", "contains administrative territorial entity")
+    x = x.replace("states ", "contains administrative territorial entity")
+    x = x.replace("citizens ", "inhabitants")
+    x = x.replace("people", "inhabitants")
 
     x = x.strip()
     y = y.strip()
     f = count.group(1).strip().lower()
+
+    if DEBUG:
+        print(x)
+        print(y)
+			    
     
-    if (x == 'citizens' or x == 'inhabitants' or x == "people" or x == 'meters' or x == 'kilometers' or y == 'inhabitants' or y == 'meters' or 
-    y == 'kilometers' or f == 'return' or f == 'give' or f == 'list' or f == 'name' or f == 'state'): 
+    if ((f == 'how' and (x != 'citizens' and x != 'inhabitants' and x != "people" and x != "population" and x != 'meters' and x != 'kilometers' and f != 'list')) or
+        ((f == 'count' or f == 'return' or f == 'give' or f == 'list' or f == 'name' or f == 'state' or f == 'what is') and (count.group(2) == 'the amount ' or count.group(2) == 'the number '))): 
+        return dissolveNP(x, y, 'count')
+    else:
         adj = ""
         if not(count.group(2) == None): adj = count.group(2).strip().lower()
         if (adj == "the height" or adj == "the size"):
             return dissolveNP(adj[4:], x + " of " + y)
         return dissolveNP(x, y)
-    else:
-	    return dissolveNP(x, y, 'count')
 
 def trueFalse(regex):
     subj1 = regex.group(5) 
@@ -357,7 +386,8 @@ def space(question):
         (nouns[i].text == "when") or (nouns[i].text == "where") or 
         (nouns[i].text == "What") or (nouns[i].text == "Who") or 
         (nouns[i].text == "When") or (nouns[i].text == "Where") or
-        (nouns[i].text == "an overview") or (nouns[i].text == "overview")):
+        (nouns[i].text == "an overview") or (nouns[i].text == "overview") or
+        (nouns[i].text == "the amount") or (nouns[i].text == "an amount")):
             del(nouns[i])
             length -= 1
         else:
@@ -367,12 +397,16 @@ def space(question):
         print("No answer found")
         return None
 
+    if DEBUG:
+        print("list of nouns in spacy")
+        print(nouns)
+
     i = length - 1
     prop = nouns[i-1]
-    entQ = search(nouns[i].text, 'entity')
-    entQ += search(nouns[i].root.lemma_, 'entity')
-    propQ = search(prop.text, 'property')
-    propQ += search(prop.root.lemma_, 'property', 'root')
+    entQ = search(nouns[i].root.lemma_, 'entity')
+    entQ += search(nouns[i].text, 'entity')
+    propQ = search(prop.root.lemma_, 'property', 'root')
+    propQ += search(prop.text, 'property')
     
     while (i>1):
         ans = sparql(entQ, propQ, 'silent')
@@ -380,8 +414,8 @@ def space(question):
         i -= 1
         prop = nouns[i-1]
         entQ = search(ans[0], 'entity')
-        propQ = search(prop.text, 'property')
-        propQ += search(prop.root.lemma_, 'property', 'root')
+        propQ = search(prop.root.lemma_, 'property', 'root')
+        propQ += search(prop.text, 'property')
     ans = sparql(entQ, propQ)
     if not(ans): 
         ans2 = sparql(propQ, entQ)
@@ -411,14 +445,13 @@ def fun(question):
     pattern = '^Through (which |what )([\w\s\'\-]+? )(flows |does )([\w\s\'\-]+?)( flow)(\?|\.)?$'
     flow = re.search(pattern, question, re.IGNORECASE)
     ##count questions Jussi
-    pattern = '^(how )(many |big )+([\w\s\'\-]+)(is |was |were |are |does |border |has |flow into |are there |are there |live |have )+(in )?([\w\s\'\-]*?)(have| pass through| cross| intersect)?(\?)?$'
+    pattern = '^(how )(many )([\w\s\'\-]+?)(neighbour |share a border |does |border |has |flow into |flow through |are there |exist |are in |are member |are a member |partake |live |in |are part of |neighbouring states )(that )?(in |intersect |cross |of |does |pass through |flow into |with )?([\w\s\'\-]+?)?( have| pass through| cross| intersect| are there)?(\?)?(\.)?$'
     count = re.search(pattern, question, re.IGNORECASE)
-    pattern = '^(count |return |give |list |name |state )(the amount |the number |the height |the size |all )?(of |in )?([\w\s\'\-]+? )(that border |that |in |of |belonging to |part of )(flow into )?([\w\s\'\-]+?)?( has| borders| passes through)?(\?)?(\.)?$'
+    pattern = '^(count |return |give |list |name |state |what is )(the amount |the number |the height |the size |all |how many )?(of |in )?([\w\s\'\-]+? )(that |who |which )?(are )?(border |in |of |belonging to |part of |there are |that there are |that |which )(flow into )?(in)?([\w\s\'\-]+?)?(has|borders|passes through|borders with|shares a border with)?(\?)?(\.)?$'
     count2 = re.search(pattern, question, re.IGNORECASE)
 	##yesno question Ivo
     pattern = '^(Is |are |were |was )(it )?(true |correct )?(that )?(.*(?= a| part of| has| is| in))?( a | part of | has | is | in )?(.*(?= of | on | the | in ))?( of | on | the | in )?(.*(?=\?))(\?)$'
     yesno = re.search(pattern, question, re.IGNORECASE)
-
 
     c = False
     if(whowhat): ##if match with the previous regex...
@@ -466,18 +499,18 @@ def main():
     
     questions = [
         "How big is the surface of the sahara desert?",
-        # "How many countries border lake Victoria?",
-        # "In what country is the Arc de Triomphe located?",
-        # "Is Australia a continent?",
-        # "List all administrative territorial entities in the Netherlands?",
-        # "List the official languages of New Zealand.",
-        # "Name the motto of Canada",
-        # "On which continent is the Onyx River located?",
-        # "State the highest peak in Jamaica",
-        # "State the height of the highest peak in Jamaica.", 
-        # "Through what countries does the Rhine flow?",
-        # "What are the official languages in Belgium?",
-        # "What countries are part of the Benelux"
+        "How many countries border lake Victoria?",
+        "In what country is the Arc de Triomphe located?",
+        "Is Australia a continent?",
+        "List all administrative territorial entities in the Netherlands?",
+        "List the official languages of New Zealand.",
+        "Name the motto of Canada",
+        "On which continent is the Onyx River located?",
+        "State the highest peak in Jamaica",
+        "State the height of the highest peak in Jamaica.", 
+        "Through what countries does the Rhine flow?",
+        "What are the official languages in Belgium?",
+        "What countries are part of the Benelux"
     ]
 
     for q in questions:
@@ -487,6 +520,7 @@ def main():
     for line in sys.stdin:
         print(line)
         fun(line)
+        if DEBUG: print("next...")
 
 
 if __name__ == "__main__":
